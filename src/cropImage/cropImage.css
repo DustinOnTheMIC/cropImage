@@ -1,0 +1,206 @@
+.containerFixed {
+    width: 100%;
+    height: 100%;
+    position: fixed;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    background-color: rgba(0, 0, 0, .5);
+    top: 0;
+    left: 0;
+}
+
+.canvasCrop {
+    position: absolute;
+    visibility: hidden
+}
+
+.cropImageContainer {
+    max-height: 872px;
+    height: 100vh;
+    width: 689px;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    position: relative;
+    flex-wrap: wrap;
+    background: #121212 0% 0% no-repeat padding-box;
+    border-radius: 10px;
+}
+
+.cropImageHeader {
+    position: relative;
+    width: 100%;
+    height: 136px;
+    display: flex;
+    justify-content: space-between;
+    align-items: baseline;
+    color: #FFFFFF;
+    padding: 10px;
+    user-select: none;
+}
+
+.btnCloseCrop {
+    color: #FFFFFF;
+    width: 24px;
+    border: none;
+    background-color: transparent;
+    height: 24px;
+    font-size: 30px;
+}
+
+.btnBackCrop {
+    color: #FFFFFF;
+    width: 24px;
+    border: none;
+    background-color: transparent;
+    height: 24px;
+    transform: rotate(180deg);
+    font-size: 20px;
+}
+
+.cropImageFooter {
+    position: relative;
+    width: 100%;
+    height: 136px;
+    justify-content: center;
+    align-items: center;
+    display: flex;
+}
+
+.btnApplyCrop {
+    width: 187px;
+    height: 48px;
+    background: #1C75BC 0% 0% no-repeat padding-box;
+    border-radius: 10px;
+    opacity: 1;
+    color: #FFFFFF;
+    cursor: pointer;
+}
+
+.image-wrapper-inner {
+    position: relative;
+    display: flex;
+    overflow: hidden;
+    height: calc(100% - 272px);
+    width: 100%;
+    background-color: #6C757D;
+    justify-content: center;
+    align-items: center;
+}
+
+.full-size {
+    background-size: 100% 100%;
+}
+
+.target-image {
+    height: 100%;
+    pointer-events: none;
+    user-select: none;
+    position: relative;
+}
+
+.target-image-full-size {
+    position: fixed;
+    pointer-events: none;
+    user-select: none;
+    visibility: hidden;
+}
+
+.cropDiv {
+    background-color: rgba(0, 0, 0, 0.3);
+    position: absolute;
+    z-index: 10;
+    border-radius: 5px;
+    visibility: visible;
+    cursor: move;
+}
+
+.makeGrid {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    grid-gap: 0;
+    grid-auto-rows: minmax(5px, auto);
+    border: 1px solid #FFFFFF;
+}
+
+.grid-item {
+    border: 1px solid #f5f5f529;
+}
+
+.resizer {
+    width: 10px;
+    height: 10px;
+    position: absolute;
+}
+
+.x1.y1 {
+    cursor: nwse-resize;
+    left: -3px;
+    top: -3px;
+    border-top: 3px solid #fff;
+    border-left: 3px solid #fff;
+}
+
+.x2.y1 {
+    cursor: nesw-resize;
+    right: -3px;
+    top: -3px;
+    border-top: 3px solid #fff;
+    border-right: 3px solid #fff;
+}
+
+.x1.y2 {
+    cursor: nesw-resize;
+    left: -3px;
+    bottom: -3px;
+    border-bottom: 3px solid #fff;
+    border-left: 3px solid #fff;
+}
+
+.x2.y2 {
+    cursor: nwse-resize;
+    right: -3px;
+    bottom: -3px;
+    border-bottom: 3px solid #fff;
+    border-right: 3px solid #fff;
+}
+
+.top {
+    width: 90%;
+    float: right;
+    height: 10px;
+    left: 5%;
+    cursor: s-resize;
+    transform: translate(0px, -5px);
+    position: absolute;
+}
+
+.right {
+    height: 90%;
+    width: 10px;
+    top: 5%;
+    right: 0;
+    cursor: w-resize;
+    transform: translate(5px, 0px);
+    position: absolute;
+}
+
+.left {
+    width: 10px;
+    height: 90%;
+    top: 5%;
+    cursor: w-resize;
+    transform: translate(-5px, 0px);
+    position: absolute;
+}
+
+.bottom {
+    height: 10px;
+    width: 90%;
+    bottom: 0;
+    right: 5%;
+    cursor: s-resize;
+    transform: translate(0px, 5px);
+    position: absolute;
+}
