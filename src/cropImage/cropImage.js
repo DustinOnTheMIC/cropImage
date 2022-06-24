@@ -1,7 +1,8 @@
 import React, { useEffect, useRef, useState } from 'react';
-import './cropImage.css';
+import './cropImage.scss';
+import PropTypes from 'prop-types';
 
-const MIN_SIDE_CROP = 200
+const MIN_SIDE_CROP = 50
 
 const CropImage = ({ imgUrl = '', onChange, onClose }) => {
   const imageRef = useRef()
@@ -31,10 +32,81 @@ const CropImage = ({ imgUrl = '', onChange, onClose }) => {
   })
 
   const [gridPosition, setGridPosition] = useState({
-    top: 0,
+    top: -1000,
     left: 0,
     size: MIN_SIDE_CROP,
   })
+
+  const [imgFullSize, setImgFullSize] = useState({
+    height: 0,
+    width: 0
+  })
+  const [containerSize, setContainerSize] = useState({
+    height: 0,
+    width: 0
+  })
+
+  useEffect(() => {
+    const obContainer = new ResizeObserver(entries => {
+      setImgFullSize({
+        width: entries[0].contentRect.width,
+        height: entries[0].contentRect.height
+      })
+    })
+
+    const obImgFullSize = new ResizeObserver(entries => {
+      setContainerSize({
+        width: entries[0].contentRect.width,
+        height: entries[0].contentRect.height
+      })
+    })
+    obContainer.observe(imageFullSizeRef?.current)
+    obImgFullSize.observe(containerRef?.current)
+  }, [])
+
+  useEffect(() => {
+    if (imgFullSize?.width && imgFullSize?.height && containerSize?.width && containerSize?.height) {
+      const rectCtn = containerRef.current?.getBoundingClientRect()
+      const maxWidth = rectCtn?.width
+      const maxHeight = rectCtn?.height
+      if ((containerSize.width / imgFullSize.width) / (containerSize.height / imgFullSize.height) > 1) {
+        const imgWidth = containerSize.height * imgFullSize.width / imgFullSize.height
+        let size = imgWidth
+        let left = (containerSize.width - imgWidth) / 2
+        let top = containerSize.height / 2 - size / 2
+        if (top + size > maxHeight) {
+          size = maxHeight
+          top = containerSize.height / 2 - size / 2
+          left = (containerSize.width - size) / 2
+        }
+        console.log(containerSize.width - imgWidth);
+        setGridPosition(
+          {
+            top,
+            size,
+            left
+          }
+        )
+      } else {
+        const imgHeight = containerSize.width * imgFullSize.height / imgFullSize.width
+        let size = imgHeight
+        let top = (containerSize.height - imgHeight) / 2
+        let left = containerSize.width / 2 - size / 2
+        if (top + size > maxWidth) {
+          size = maxWidth
+          left = containerSize.width / 2 - size / 2
+          top = (containerSize.height - size) / 2
+        }
+        setGridPosition(
+          {
+            top,
+            size,
+            left
+          }
+        )
+      }
+    }
+  }, [imgFullSize?.height, imgFullSize.width, containerSize.height, containerSize.width])
 
   useEffect(() => {
     document.onmouseup = () => {
@@ -45,11 +117,6 @@ const CropImage = ({ imgUrl = '', onChange, onClose }) => {
       document.onmouseup = () => { }
     }
   }, [])
-
-  const cancelEffect = e => {
-    e.preventDefault()
-    e.stopPropagation()
-  }
 
   const handleMouseDown = (e) => {
     e.stopPropagation()
@@ -78,9 +145,10 @@ const CropImage = ({ imgUrl = '', onChange, onClose }) => {
       y2: (cropRef.current?.offsetTop || 0) + (cropRef.current?.getBoundingClientRect()?.height || 0)
     }
 
+    const rectCtn = containerRef.current?.getBoundingClientRect()
     startMovingPositionRef.current = {
-      x: e.clientX,
-      y: e.clientY
+      x: e.clientX || (e.targetTouches[0].clientX - rectCtn.x),
+      y: e.clientY || (e.targetTouches[0].clientY - rectCtn.y)
     }
   }
 
@@ -91,16 +159,16 @@ const CropImage = ({ imgUrl = '', onChange, onClose }) => {
       x2: (cropRef.current?.offsetLeft || 0) + (cropRef.current?.getBoundingClientRect()?.width || 0),
       y2: (cropRef.current?.offsetTop || 0) + (cropRef.current?.getBoundingClientRect()?.height || 0)
     }
+    const rectCtn = containerRef.current?.getBoundingClientRect()
     startMovingPositionRef.current = {
-      x: e.clientX,
-      y: e.clientY
+      x: e.clientX || (e.targetTouches[0].clientX - rectCtn?.x),
+      y: e.clientY || (e.targetTouches[0].clientY - rectCtn?.y)
     }
     isMovingRef.current = true
     cropRef.current.style.pointerEvents = 'none'
   }
 
   const handleMouseMove = (e) => {
-    cancelEffect(e)
     if (isDraggingRef.current) {
       if (
         (currentPointPropertyRef?.current?.x === 'x2' && currentPointPropertyRef?.current?.y === 'y1') ||
@@ -110,9 +178,16 @@ const CropImage = ({ imgUrl = '', onChange, onClose }) => {
       } else {
         containerRef.current.style.cursor = 'nwse-resize'
       }
+      const rectCtn = containerRef.current?.getBoundingClientRect()
+      const maxWidth = rectCtn?.width
+      const maxHeight = rectCtn?.height
+      let x = +e.nativeEvent.offsetX
+      let y = +e.nativeEvent.offsetY
+      if (!x && !y) {
+        x = e.targetTouches[0].clientX - rectCtn?.x;
+        y = e.targetTouches[0].clientY - rectCtn?.y
+      }
 
-      const x = +e.nativeEvent.offsetX
-      const y = +e.nativeEvent.offsetY
       const dx = x - startBoundRef.current[currentPointPropertyRef.current.x]
       const dy = y - startBoundRef.current[currentPointPropertyRef.current.y]
       let newBound = { ...startBoundRef.current }
@@ -120,6 +195,7 @@ const CropImage = ({ imgUrl = '', onChange, onClose }) => {
       newBound[currentPointPropertyRef.current.y] = y
       let sizeX = newBound.x2 - newBound.x1
       let sizeY = newBound.y2 - newBound.y1
+
       if (sizeX >= MIN_SIDE_CROP && sizeY >= MIN_SIDE_CROP) {
         if (sizeX < sizeY) {
           newBound[currentPointPropertyRef.current.x] = x
@@ -135,16 +211,28 @@ const CropImage = ({ imgUrl = '', onChange, onClose }) => {
             newBound[currentPointPropertyRef.current.x] = newBound[currentPointPropertyRef.current.x] - 2 * dy
           }
         }
-        setGridPosition(prev => ({ ...prev, size: newBound.x2 - newBound.x1, top: newBound.y1, left: newBound.x1 }))
+        if (
+          newBound.x2 - newBound.x1 >= MIN_SIDE_CROP &&
+          newBound.x2 <= maxWidth &&
+          newBound.y1 >= 0 &&
+          newBound.x1 >= 0 &&
+          newBound.y2 <= maxHeight
+        ) {
+          setGridPosition(({ size: newBound.x2 - newBound.x1, top: newBound.y1, left: newBound.x1 }))
+        }
       }
     }
 
     if (isMovingRef.current && !isMovingSideRef.current) {
       containerRef.current.style.cursor = 'move'
-      const maxWidth = containerRef.current?.getBoundingClientRect()?.width
-      const maxHeight = containerRef.current?.getBoundingClientRect()?.height
-      let dMoveX = e.clientX - startMovingPositionRef.current.x
-      let dMoveY = e.clientY - startMovingPositionRef.current.y
+      const rectCtn = containerRef.current?.getBoundingClientRect()
+      const maxWidth = rectCtn?.width
+      const maxHeight = rectCtn?.height
+
+      const x = e.clientX || (e.targetTouches[0].clientX - rectCtn.x)
+      const y = e.clientY || (e.targetTouches[0].clientY - rectCtn.y)
+      let dMoveX = x - startMovingPositionRef.current.x
+      let dMoveY = y - startMovingPositionRef.current.y
       let size = startBoundRef.current.x2 - startBoundRef.current.x1
       let top = startBoundRef.current.y1 + dMoveY
       let left = startBoundRef.current.x1 + dMoveX
@@ -162,14 +250,17 @@ const CropImage = ({ imgUrl = '', onChange, onClose }) => {
       if (top < 0) {
         top = 0
       }
-      setGridPosition(prev => ({ ...prev, size: size, top: top, left: left }))
+      setGridPosition(({ size: size, top: top, left: left }))
     }
 
     if (isMovingSideRef.current) {
-      const x = +e.nativeEvent.offsetX
-      const y = +e.nativeEvent.offsetY
-      const maxWidth = containerRef.current?.getBoundingClientRect()?.width
-      const maxHeight = containerRef.current?.getBoundingClientRect()?.height
+      const rectCtn = containerRef.current?.getBoundingClientRect()
+
+      const maxWidth = rectCtn?.width
+      const maxHeight = rectCtn?.height
+
+      let x = +e.nativeEvent.offsetX || (e.targetTouches[0].clientX - rectCtn.x)
+      let y = +e.nativeEvent.offsetY || (e.targetTouches[0].clientY - rectCtn.y)
 
       if (movingSideRef.current === 'top') {
         containerRef.current.style.cursor = 's-resize'
@@ -178,7 +269,7 @@ const CropImage = ({ imgUrl = '', onChange, onClose }) => {
         newBound.y1 = y
         newBound.x2 = startBoundRef.current.x2 - dy
         const size = newBound.x2 - newBound.x1
-        if (size >= MIN_SIDE_CROP && newBound.x2 <= maxWidth) {
+        if (size >= MIN_SIDE_CROP && newBound.x2 <= maxWidth && newBound.y1 >= 0) {
           setGridPosition({ size: newBound.x2 - newBound.x1, top: newBound.y1, left: newBound.x1 })
         }
       } else if (movingSideRef.current === 'left') {
@@ -188,7 +279,7 @@ const CropImage = ({ imgUrl = '', onChange, onClose }) => {
         newBound.x1 = x
         newBound.y2 = startBoundRef.current.y2 - dx
         const size = newBound.x2 - newBound.x1
-        if (size >= MIN_SIDE_CROP && newBound.y2 <= maxHeight) {
+        if (size >= MIN_SIDE_CROP && newBound.y2 <= maxHeight && newBound.x1 >= 0) {
           setGridPosition({ size: newBound.x2 - newBound.x1, top: newBound.y1, left: newBound.x1 })
         }
       } else if (movingSideRef.current === 'right') {
@@ -198,7 +289,7 @@ const CropImage = ({ imgUrl = '', onChange, onClose }) => {
         newBound.x2 = x
         newBound.y2 = startBoundRef.current.y2 + dx
         const size = newBound.x2 - newBound.x1
-        if (size >= MIN_SIDE_CROP && newBound.y2 <= maxHeight) {
+        if (size >= MIN_SIDE_CROP && newBound.y2 <= maxHeight && newBound.x2 <= maxWidth) {
           setGridPosition({ size: newBound.x2 - newBound.x1, top: newBound.y1, left: newBound.x1 })
         }
       } else {
@@ -208,7 +299,7 @@ const CropImage = ({ imgUrl = '', onChange, onClose }) => {
         newBound.y2 = y
         newBound.x2 = startBoundRef.current.x2 + dy
         const size = newBound.x2 - newBound.x1
-        if (size >= MIN_SIDE_CROP && newBound.x2 <= maxWidth) {
+        if (size >= MIN_SIDE_CROP && newBound.x2 <= maxWidth && newBound.y2 <= maxHeight) {
           setGridPosition({ size: newBound.x2 - newBound.x1, top: newBound.y1, left: newBound.x1 })
         }
       }
@@ -236,23 +327,32 @@ const CropImage = ({ imgUrl = '', onChange, onClose }) => {
     setDisableBtnCrop(true)
 
     const containerWidth = containerRef.current.clientWidth
+    const containerHeight = containerRef.current.clientHeight
 
     const cropWidth = cropRef.current.clientWidth
     const cropHeight = cropRef.current.clientHeight
 
-    const imgWidth = imageRef.current.clientWidth
-    const imgHeight = imageRef.current.clientHeight
 
     const imgFullSizeWidth = imageFullSizeRef.current.clientWidth
     const imgFullSizeHeight = imageFullSizeRef.current.clientHeight
 
-    const leftImg = (containerWidth - imgWidth) / 2
+    let imgWidth = containerWidth
+    let imgHeight = containerHeight
+
+    if ((containerWidth / imgFullSizeWidth) / (containerHeight / imgFullSizeHeight) > 1) {
+      imgWidth = (containerHeight / imgFullSizeHeight) * imgFullSizeWidth
+    } else {
+      imgHeight = (containerWidth / imgFullSizeWidth) * imgFullSizeHeight
+    }
+
+    const leftImg = containerWidth - imgWidth != 0 ? (containerWidth - imgWidth) / 2 : 0
+    const topImg = containerHeight - imgHeight !== 0 ? (containerHeight - imgHeight) / 2 : 0
 
     const x = cropRef.current.offsetLeft
     const y = cropRef.current.offsetTop
 
-    const realY = y === 0 ? 0 : imgFullSizeHeight * y / imgHeight
-    const realX = imgFullSizeWidth * (x - leftImg) / imgWidth
+    const realY = y - topImg !== 0 ? imgFullSizeHeight * (y - topImg) / imgHeight : 0
+    const realX = x - leftImg !== 0 ? imgFullSizeWidth * (x - leftImg) / imgWidth : 0
 
     const cropWidthImgFullSize = imgFullSizeWidth * cropWidth / imgWidth
 
@@ -277,23 +377,26 @@ const CropImage = ({ imgUrl = '', onChange, onClose }) => {
   }
 
   const handleClosePopup = () => {
-    onClose && onClose()
+    onClose()
   }
 
+  let clipStyle = `polygon(${gridPosition.left}px ${gridPosition.top}px, ${gridPosition.left + gridPosition.size}px ${gridPosition.top}px, ${gridPosition.left + gridPosition.size}px ${gridPosition.top + gridPosition.size}px, ${gridPosition.left}px ${gridPosition.top + gridPosition.size}px)`
   return (
     <>
       <canvas ref={canvasRef} className='canvasCrop'></canvas>
-      <div className='containerFixed'>
+      <div className='containerFixedCropImage'>
         <div className='cropImageContainer' >
           <div className='cropImageHeader'>
             <button className='btnBackCrop'>
-              &#10140;
             </button>
             <div>
               Cắt ảnh
             </div>
             <button className='btnCloseCrop' onClick={handleClosePopup}>
-              &times;
+              <svg id="Group_14802" data-name="Group 14802" xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 18 18" style={{transform: 'translate(-3px, -10px)'}}>
+                <path id="Path_8069" data-name="Path 8069" d="M0,0H18V18H0Z" fill="none" />
+                <path id="Path_8070" data-name="Path 8070" d="M10.409,9.349l3.713-3.713L15.182,6.7,11.47,10.409l3.713,3.713-1.061,1.061L10.409,11.47,6.7,15.182,5.636,14.122l3.712-3.712L5.636,6.7,6.7,5.636Z" transform="translate(-1.409 -1.409)" fill="#FFFFFF" />
+              </svg>
             </button>
           </div>
           <div
@@ -302,27 +405,34 @@ const CropImage = ({ imgUrl = '', onChange, onClose }) => {
             onMouseMove={handleMouseMove}
             onMouseUp={handleMouseUp}
             onClick={handleMouseUp}
-            onMouseDown={cancelEffect}
+            onTouchEnd={handleMouseUp}
+            onTouchMove={handleMouseMove}
+            style={{
+              backgroundImage: `url(${imgUrl})`
+            }}
           >
-            <img src={imgUrl} className="target-image" ref={imageRef} crossOrigin="anonymous" />
+            <img style={{
+              clipPath: clipStyle
+            }} src={imgUrl} className="target-image" ref={imageRef} crossOrigin="anonymous" />
             <img src={imgUrl} className="target-image-full-size" ref={imageFullSizeRef} crossOrigin="anonymous" />
             <div
               ref={cropRef}
               className="cropDiv makeGrid"
               onMouseDown={handleMouseDownCrop}
+              onTouchStart={handleMouseDownCrop}
               style={{ top: `${gridPosition.top}px`, left: `${gridPosition.left}px`, width: `${gridPosition.size}px`, height: `${gridPosition.size}px` }}
             >
-              <div className='top' onMouseDown={handleMouseDownSide}></div>
-              <div className='right' onMouseDown={handleMouseDownSide}></div>
-              <div className='left' onMouseDown={handleMouseDownSide}></div>
-              <div className='bottom' onMouseDown={handleMouseDownSide}></div>
+              <div className='top' onMouseDown={handleMouseDownSide} onTouchStart={handleMouseDownSide}></div>
+              <div className='right' onMouseDown={handleMouseDownSide} onTouchStart={handleMouseDownSide}></div>
+              <div className='left' onMouseDown={handleMouseDownSide} onTouchStart={handleMouseDownSide}></div>
+              <div className='bottom' onMouseDown={handleMouseDownSide} onTouchStart={handleMouseDownSide}></div>
 
               <div className="grid-item">
-                <div className='resizer x1 y1' onMouseDown={handleMouseDown}></div>
+                <div className='resizer x1 y1' onMouseDown={handleMouseDown} onTouchStart={handleMouseDown}></div>
               </div>
               <div className="grid-item"></div>
               <div className="grid-item">
-                <div className='resizer x2 y1' onMouseDown={handleMouseDown}></div>
+                <div className='resizer x2 y1' onMouseDown={handleMouseDown} onTouchStart={handleMouseDown}></div>
               </div>
 
               <div className="grid-item"></div>
@@ -330,11 +440,11 @@ const CropImage = ({ imgUrl = '', onChange, onClose }) => {
               <div className="grid-item"></div>
 
               <div className="grid-item">
-                <div className='resizer x1 y2' onMouseDown={handleMouseDown}></div>
+                <div className='resizer x1 y2' onMouseDown={handleMouseDown} onTouchStart={handleMouseDown}></div>
               </div>
               <div className="grid-item"></div>
               <div className="grid-item">
-                <div className='resizer x2 y2' onMouseDown={handleMouseDown}></div>
+                <div className='resizer x2 y2' onMouseDown={handleMouseDown} onTouchStart={handleMouseDown}></div>
               </div>
             </div>
           </div>
@@ -346,6 +456,12 @@ const CropImage = ({ imgUrl = '', onChange, onClose }) => {
       </div>
     </>
   )
+};
+
+CropImage.propTypes = {
+  imgUrl: PropTypes.string,
+  onChange: PropTypes.func,
+  onClose: PropTypes.func
 };
 
 export default CropImage;
