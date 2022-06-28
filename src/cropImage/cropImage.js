@@ -62,15 +62,20 @@ const CropImage = ({ imgUrl = '', onChange, onClose }) => {
     })
     obContainer.observe(imageFullSizeRef?.current)
     obImgFullSize.observe(containerRef?.current)
+    return () => {
+      obContainer?.disconect()
+      obImgFullSize?.disconect()
+    }
   }, [])
 
-  useEffect(() => {
+useEffect(() => {
     if (imgFullSize?.width && imgFullSize?.height && containerSize?.width && containerSize?.height) {
       const rectCtn = containerRef.current?.getBoundingClientRect()
       const maxWidth = rectCtn?.width
       const maxHeight = rectCtn?.height
+      const imgHeight = containerSize.width * imgFullSize.height / imgFullSize.width
+      const imgWidth = containerSize.height * imgFullSize.width / imgFullSize.height
       if ((containerSize.width / imgFullSize.width) / (containerSize.height / imgFullSize.height) > 1) {
-        const imgWidth = containerSize.height * imgFullSize.width / imgFullSize.height
         let size = imgWidth
         let left = (containerSize.width - imgWidth) / 2
         let top = containerSize.height / 2 - size / 2
@@ -79,7 +84,6 @@ const CropImage = ({ imgUrl = '', onChange, onClose }) => {
           top = containerSize.height / 2 - size / 2
           left = (containerSize.width - size) / 2
         }
-        console.log(containerSize.width - imgWidth);
         setGridPosition(
           {
             top,
@@ -88,12 +92,11 @@ const CropImage = ({ imgUrl = '', onChange, onClose }) => {
           }
         )
       } else {
-        const imgHeight = containerSize.width * imgFullSize.height / imgFullSize.width
         let size = imgHeight
         let top = (containerSize.height - imgHeight) / 2
         let left = containerSize.width / 2 - size / 2
         if (top + size > maxWidth) {
-          size = maxWidth
+          size = imgHeight > imgWidth ? imgWidth : imgHeight
           left = containerSize.width / 2 - size / 2
           top = (containerSize.height - size) / 2
         }
